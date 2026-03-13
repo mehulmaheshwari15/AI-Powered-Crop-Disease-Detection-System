@@ -138,11 +138,18 @@ def _milestone_status(
     print(f"DEBUG TIMELINE: checking '{action_type}' for milestone_day {milestone_day}. "
           f"Window: {window_start} to {window_end}. season: {season_id}")
 
+    # Map milestone action_type to allowed database types
+    allowed_types = [action_type]
+    if action_type == "HEALTH_OBSERVATION":
+        allowed_types = ["HEALTH_OBSERVATION", "DISEASE_DETECTED"]
+    elif action_type in ["HARVEST_COMPLETE", "HARVEST_PARTIAL"]:
+        allowed_types = ["HARVEST_PARTIAL", "HARVEST_COMPLETE"]
+
     action = (
         db.query(FarmingAction)
         .filter(
             FarmingAction.season_id  == season_id,
-            FarmingAction.action_type == action_type,
+            FarmingAction.action_type.in_(allowed_types),
             FarmingAction.action_date >= window_start,
             FarmingAction.action_date <= window_end,
         )

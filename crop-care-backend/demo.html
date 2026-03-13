@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered Crop Care System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2e7d32;
+            --primary-light: #60ad5e;
+            --primary-dark: #005005;
+            --bg-color: #f5f7fa;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --text-muted: #666666;
+
+            --critical: #d32f2f;
+            --high: #ed6c02;
+            --medium: #fbc02d;
+            --low: #0288d1;
+
+            --done: #2e7d32;
+            --overdue: #d32f2f;
+            --upcoming: #9e9e9e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        /* Section 1 - Header */
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 30px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-light));
+            color: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-size: 18px;
+            margin-bottom: 16px;
+            color: var(--primary-dark);
+            border-bottom: 2px solid #eee;
+            padding-bottom: 8px;
+        }
+
+        /* Section 2 - Quick Demo Panel */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        button {
+            width: 100%;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-dark);
+        }
+
+        button:disabled {
+            background-color: #a5d6a7;
+            cursor: not-allowed;
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            display: none;
+            margin: 20px auto;
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(46, 125, 50, 0.2);
+            border-left-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        #error-msg {
+            color: var(--critical);
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 15px;
+            display: none;
+            font-size: 14px;
+        }
+
+        /* Section 3 - Results Display */
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .results-header h3 {
+            font-size: 22px;
+            color: var(--text-main);
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .health-circle-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .health-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 36px;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border: 6px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .health-GOOD,
+        .health-EXCELLENT {
+            background-color: var(--done);
+        }
+
+        .health-FAIR {
+            background-color: var(--high);
+        }
+
+        .health-POOR {
+            background-color: var(--critical);
+        }
+
+        .health-status-label {
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .deductions-list {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 10px;
+            padding-left: 20px;
+        }
+
+        .deductions-list li {
+            margin-bottom: 4px;
+        }
+
+        /* Section 4 - Recommendations */
+        .rec-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .rec-card {
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 15px;
+            border-left: 4px solid #ccc;
+        }
+
+        .rec-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .rec-type {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .urgency-CRITICAL {
+            border-left-color: var(--critical);
+        }
+
+        .badge-CRITICAL {
+            background-color: var(--critical);
+            color: white;
+        }
+
+        .urgency-HIGH {
+            border-left-color: var(--high);
+        }
+
+        .badge-HIGH {
+            background-color: var(--high);
+            color: white;
+        }
+
+        .urgency-MEDIUM {
+            border-left-color: var(--medium);
+        }
+
+        .badge-MEDIUM {
+            background-color: var(--medium);
+            color: white;
+        }
+
+        .urgency-LOW {
+            border-left-color: var(--low);
+        }
+
+        .badge-LOW {
+            background-color: var(--low);
+            color: white;
+        }
+
+        .rec-msg {
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--text-main);
+        }
+
+        .overdue-text {
+            display: block;
+            margin-top: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--critical);
+        }
+
+        /* Section 5 - Timeline Panel */
+        .timeline {
+            position: relative;
+            padding-left: 20px;
+            margin-top: 20px;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e0e0e0;
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 15px;
+            padding-left: 15px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -25px;
+            top: 4px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #ccc;
+        }
+
+        .timeline-item.DONE::before {
+            border-color: var(--done);
+            background: var(--done);
+        }
+
+        .timeline-item.OVERDUE::before {
+            border-color: var(--overdue);
+            background: var(--overdue);
+        }
+
+        .timeline-item.UPCOMING::before {
+            border-color: var(--upcoming);
+        }
+
+        .tl-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .tl-event {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .tl-day {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .tl-status {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .tl-date {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .color-DONE {
+            color: var(--done);
+        }
+
+        .color-OVERDUE {
+            color: var(--overdue);
+        }
+
+        .color-UPCOMING {
+            color: var(--upcoming);
+        }
+
+        #dashboard-content {
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Section 1 - Header -->
+    <header>
+        <h1>AI-Powered Crop Care System</h1>
+        <p>HackJKLU 5.0 — Smart Farming Assistant</p>
+    </header>
+
+    <div class="container">
+
+        <!-- Left Column -->
+        <div class="left-col">
+            <!-- Section 2 - Quick Demo Panel -->
+            <div class="card">
+                <h2>Quick Demo Setup</h2>
+                <form id="demo-form">
+                    <div class="form-group">
+                        <label for="crop-name">Crop Type</label>
+                        <select id="crop-name" class="form-control">
+                            <option value="wheat">Wheat</option>
+                            <option value="rice">Rice</option>
+                            <option value="maize">Maize</option>
+                            <option value="tomato">Tomato</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="days-sown">Days Since Sowing</label>
+                        <input type="number" id="days-sown" class="form-control" value="25" min="0" max="150">
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="irrigation-done">
+                        <label for="irrigation-done">Irrigation Done Recently</label>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="fertilizer-done">
+                        <label for="fertilizer-done">Fertilizer Applied Recently</label>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="weeding-done">
+                        <label for="weeding-done">Weeding Done Recently</label>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="pesticide-done">
+                        <label for="pesticide-done">Pesticide Sprayed Recently</label>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="fungicide-done">
+                        <label for="fungicide-done">Fungicide Sprayed Recently</label>
+                    </div>
+
+                    <button type="submit" id="generate-btn">Generate Crop Report</button>
+                </form>
+
+                <div class="spinner" id="loading-spinner"></div>
+                <div id="error-msg"></div>
+            </div>
+
+            <!-- Section 3 - Results Display (Moved here for better layout) -->
+            <div class="card" id="results-card" style="display: none;">
+                <h2>Crop Health Overview</h2>
+                <div class="results-header">
+                    <h3 id="display-crop-name">Wheat - VEGETATIVE</h3>
+                    <span class="badge" id="display-days">Day 25</span>
+                </div>
+
+                <div class="health-circle-container">
+                    <div class="health-circle" id="health-circle">75</div>
+                    <div class="health-status-label" id="health-label">GOOD</div>
+                </div>
+
+                <div id="deductions-container" style="display:none;">
+                    <strong style="font-size: 13px;">Health Insights:</strong>
+                    <ul class="deductions-list" id="deductions-list"></ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="right-col" id="dashboard-content">
+
+            <!-- Section 4 - Recommendations Panel -->
+            <div class="card">
+                <h2>Smart Recommendations</h2>
+                <div class="rec-grid" id="recommendations-container">
+                    <!-- Cards injected here -->
+                </div>
+            </div>
+
+            <!-- Section 5 - Timeline Panel -->
+            <div class="card">
+                <h2>Crop Lifecycle Timeline</h2>
+                <div class="timeline" id="timeline-container">
+                    <!-- Timeline items injected here -->
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script>
+        const API_URL = "http://127.0.0.1:8002/api/v1/crop-care/dev/generate-test-season";
+
+        document.getElementById('demo-form').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const btn = document.getElementById('generate-btn');
+            const spinner = document.getElementById('loading-spinner');
+            const errorMsg = document.getElementById('error-msg');
+            const dashboardContent = document.getElementById('dashboard-content');
+            const resultsCard = document.getElementById('results-card');
+
+            // Reset UI
+            errorMsg.style.display = 'none';
+            dashboardContent.style.display = 'none';
+            resultsCard.style.display = 'none';
+            btn.disabled = true;
+            spinner.style.display = 'block';
+
+            // Gather Data
+            const payload = {
+                crop_name: document.getElementById('crop-name').value,
+                days_since_sowing: parseInt(document.getElementById('days-sown').value) || 0,
+                simulate_irrigation: document.getElementById('irrigation-done').checked,
+                simulate_fertilizer: document.getElementById('fertilizer-done').checked,
+                simulate_weeding: document.getElementById('weeding-done').checked,
+                simulate_pesticide: document.getElementById('pesticide-done').checked,
+                simulate_fungicide: document.getElementById('fungicide-done').checked
+            };
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Server returned ${response.status}. Is the backend running at port 8001?`);
+                }
+
+                const data = await response.json();
+                renderDashboard(data);
+
+            } catch (err) {
+                errorMsg.textContent = `Error: ${err.message}. Please ensure the FastAPI server is running on port 8001.`;
+                errorMsg.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+            }
+        });
+
+        function renderDashboard(data) {
+            // Show Cards
+            document.getElementById('dashboard-content').style.display = 'block';
+            document.getElementById('results-card').style.display = 'block';
+
+            // 1. Health Overview
+            document.getElementById('display-crop-name').textContent = `${data.crop_name} — ${data.detected_stage}`;
+            document.getElementById('display-days').textContent = `Day ${data.days_since_sowing}`;
+
+            const circle = document.getElementById('health-circle');
+            circle.textContent = data.crop_health_score;
+            circle.className = `health-circle health-${data.health_status}`;
+
+            const label = document.getElementById('health-label');
+            label.textContent = data.health_status;
+            label.className = `health-status-label color-${data.health_status}`;
+
+            // Deductions
+            const deductionsBox = document.getElementById('deductions-container');
+            const deductionsList = document.getElementById('deductions-list');
+            deductionsList.innerHTML = '';
+
+            if (data.score_details && data.score_details.deductions && data.score_details.deductions.length > 0) {
+                deductionsBox.style.display = 'block';
+                data.score_details.deductions.forEach(d => {
+                    const li = document.createElement('li');
+                    li.textContent = d;
+                    deductionsList.appendChild(li);
+                });
+            } else {
+                deductionsBox.style.display = 'none';
+            }
+
+            // 2. Recommendations
+            const recContainer = document.getElementById('recommendations-container');
+            recContainer.innerHTML = '';
+
+            if (data.recommendations && data.recommendations.length > 0) {
+                data.recommendations.forEach(rec => {
+                    const el = document.createElement('div');
+                    el.className = `rec-card urgency-${rec.urgency}`;
+
+                    let overdueHtml = '';
+                    if (rec.days_overdue && rec.days_overdue > 0) {
+                        overdueHtml = `<span class="overdue-text">⚠️ ${rec.days_overdue} days overdue</span>`;
+                    }
+
+                    el.innerHTML = `
+                        <div class="rec-header">
+                            <span class="rec-type">${rec.type}</span>
+                            <span class="badge badge-${rec.urgency}">${rec.urgency}</span>
+                        </div>
+                        <div class="rec-msg">${rec.message}</div>
+                        ${overdueHtml}
+                    `;
+                    recContainer.appendChild(el);
+                });
+            } else {
+                recContainer.innerHTML = '<p style="font-size: 14px; color: #666;">No urgent actions required. Crop is healthy!</p>';
+            }
+
+            // 3. Timeline
+            const tlContainer = document.getElementById('timeline-container');
+            tlContainer.innerHTML = '';
+
+            if (data.timeline && data.timeline.length > 0) {
+                data.timeline.forEach(m => {
+                    const el = document.createElement('div');
+                    el.className = `timeline-item ${m.status}`;
+
+                    // Format Date nicely
+                    let dateStr = m.target_date;
+                    try {
+                        const d = new Date(m.target_date);
+                        dateStr = d.toLocaleDateString(undefined, {month: 'short', day: 'numeric', year: 'numeric'});
+                    } catch (e) { }
+
+                    el.innerHTML = `
+                        <div class="tl-header">
+                            <span class="tl-event">${m.event}</span>
+                            <span class="tl-status color-${m.status}">${m.status}</span>
+                        </div>
+                        <div class="tl-day">Day ${m.day} • <span class="tl-date">${dateStr}</span></div>
+                    `;
+                    tlContainer.appendChild(el);
+                });
+            } else {
+                tlContainer.innerHTML = '<p>No timeline data available.</p>';
+            }
+        }
+    </script>
+</body>
+
+</html>

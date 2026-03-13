@@ -28,8 +28,6 @@ This backend manages the **complete lifecycle** of a farmer's crop:
 - 📋 **Farming Actions** — Log every event: irrigation, fertilizer, sprays, disease detection
 - 💡 **Recommendations** — Smart advice based on crop stage and action history
 - 🔗 **AI Disease Bridge** — Connect AI diagnosis results to treatment tracking
-
-Built for **HackJKLU 5.0**.
     """,
     version="1.0.0",
     contact={

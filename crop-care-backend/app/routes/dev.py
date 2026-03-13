@@ -24,6 +24,9 @@ class TestSeasonRequest(BaseModel):
     days_since_sowing: int
     simulate_irrigation: bool = False
     simulate_fertilizer: bool = False
+    simulate_weeding: bool = False
+    simulate_pesticide: bool = False
+    simulate_fungicide: bool = False
 
 @router.post("/generate-test-season", summary="[DEV] Generate a test season with simulated actions")
 def generate_test_season(data: TestSeasonRequest, db: Session = Depends(get_db)):
@@ -87,6 +90,45 @@ def generate_test_season(data: TestSeasonRequest, db: Session = Depends(get_db))
         ))
         simulated_actions.append("FERTILIZER_APPLICATION")
 
+    if data.simulate_weeding:
+        weed_date = (date.today() - timedelta(days=8)).isoformat()
+        db.add(FarmingAction(
+            action_id=str(uuid.uuid4()),
+            season_id=season_id,
+            farmer_id="dev-test-farmer",
+            action_type="WEEDING",
+            action_date=weed_date,
+            notes="Simulated test weeding",
+            is_synced=True
+        ))
+        simulated_actions.append("WEEDING")
+
+    if data.simulate_pesticide:
+        pest_date = (date.today() - timedelta(days=12)).isoformat()
+        db.add(FarmingAction(
+            action_id=str(uuid.uuid4()),
+            season_id=season_id,
+            farmer_id="dev-test-farmer",
+            action_type="PESTICIDE_SPRAY",
+            action_date=pest_date,
+            notes="Simulated test pesticide",
+            is_synced=True
+        ))
+        simulated_actions.append("PESTICIDE_SPRAY")
+
+    if data.simulate_fungicide:
+        fung_date = (date.today() - timedelta(days=15)).isoformat()
+        db.add(FarmingAction(
+            action_id=str(uuid.uuid4()),
+            season_id=season_id,
+            farmer_id="dev-test-farmer",
+            action_type="FUNGICIDE_SPRAY",
+            action_date=fung_date,
+            notes="Simulated test fungicide",
+            is_synced=True
+        ))
+        simulated_actions.append("FUNGICIDE_SPRAY")
+
     db.commit()
     db.refresh(season)
 
@@ -108,6 +150,7 @@ def generate_test_season(data: TestSeasonRequest, db: Session = Depends(get_db))
         "detected_stage": engine_result["current_stage"],
         "crop_health_score": engine_result["crop_health_score"],
         "health_status": engine_result["health_status"],
+        "score_details": engine_result["score_details"],
         "simulated_actions": simulated_actions,
         "recommendations": engine_result["recommendations"],
         "timeline": timeline
