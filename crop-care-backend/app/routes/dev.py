@@ -93,7 +93,14 @@ def generate_test_season(data: TestSeasonRequest, db: Session = Depends(get_db))
     warnings: list[str] = []
     max_irr = CROP_MAX_IRRIGATIONS_PER_WEEK.get(crop_key, 1)
 
-    # 3. Process weekly log
+    # Gather single-event flags across all weeks
+    has_fert = any(e.fertilizer_done for e in data.weekly_log)
+    has_weed = any(e.weeding_done for e in data.weekly_log)
+    has_pest = any(e.pesticide_done for e in data.weekly_log)
+    has_fung = any(e.fungicide_done for e in data.weekly_log)
+    has_obs  = any(e.health_observation for e in data.weekly_log)
+
+    # 3. Process weekly log for irrigations
     for entry in data.weekly_log:
         w = entry.week
         week_start_day = (w - 1) * 7
@@ -124,27 +131,29 @@ def generate_test_season(data: TestSeasonRequest, db: Session = Depends(get_db))
                 if "IRRIGATION" not in simulated_actions:
                     simulated_actions.append("IRRIGATION")
 
-        # Single-event actions logged mid-week (day 3)
-        mid_date = (week_start_date + timedelta(days=3)).isoformat()
-        if mid_date > today_str:
-            continue
+    # Log single events on their agronomic milestone days
+    pest_days = {"wheat": 45, "rice": 35, "maize": 30, "tomato": 35}
+    fung_days = {"wheat": 60, "rice": 60, "maize": 50, "tomato": 45}
 
-        single_events = [
-            (entry.fertilizer_done,    "FERTILIZER_APPLICATION", "fertilizer"),
-            (entry.weeding_done,       "WEEDING",                "weeding"),
-            (entry.pesticide_done,     "PESTICIDE_SPRAY",        "pesticide"),
-            (entry.fungicide_done,     "FUNGICIDE_SPRAY",        "fungicide"),
-            (entry.health_observation, "HEALTH_OBSERVATION",     "health observation"),
-        ]
-        for flag, action_type, label in single_events:
-            if flag:
+    single_events = [
+        (has_fert, "FERTILIZER_APPLICATION", 21, "Fertilizer applied"),
+        (has_weed, "WEEDING",                21, "Weeding done"),
+        (has_obs,  "HEALTH_OBSERVATION",     10, "Early check"),
+        (has_pest, "PESTICIDE_SPRAY",        pest_days.get(crop_key, 35), "Pesticide spray"),
+        (has_fung, "FUNGICIDE_SPRAY",        fung_days.get(crop_key, 50), "Fungicide spray"),
+    ]
+
+    for flag, action_type, target_day, label in single_events:
+        if flag:
+            target_date = (sowing_date_obj + timedelta(days=target_day)).isoformat()
+            if target_date <= today_str:
                 db.add(FarmingAction(
                     action_id=str(uuid.uuid4()),
                     season_id=season_id,
                     farmer_id="dev-test-farmer",
                     action_type=action_type,
-                    action_date=mid_date,
-                    notes=f"Week {w} {label}",
+                    action_date=target_date,
+                    notes=f"Simulated {label} (Day {target_day})",
                     is_synced=True,
                 ))
                 if action_type not in simulated_actions:

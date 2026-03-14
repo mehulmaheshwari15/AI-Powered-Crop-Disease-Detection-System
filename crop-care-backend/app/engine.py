@@ -494,19 +494,19 @@ CROP_RULES: dict[str, dict[str, list]] = {
     # ── WHEAT (120-day crop) ──────────────────────────────────────────────────
     "wheat": {
         "GERMINATION": [
-            _irrigation("wheat", "GERMINATION", interval=5),
+            _irrigation("wheat", "GERMINATION", interval=7),
             _observation("wheat", "GERMINATION", due_day=7,
                 check_tip="Check germination percentage. Wheat should show ≥85% emergence by day 10."),
         ],
         "VEGETATIVE": [
             _fertilizer("wheat", "VEGETATIVE", due_day=21,
                 advice="Apply Urea @ 60 kg/acre, broadcast evenly, then irrigate lightly."),
-            _irrigation("wheat", "VEGETATIVE", interval=7),
+            _irrigation("wheat", "VEGETATIVE", interval=10),
             _weeding("wheat", "VEGETATIVE", due_day=21),
         ],
         "FLOWERING": [
             wheat_flowering_no_excess_nitrogen,
-            _irrigation("wheat", "FLOWERING", interval=6),
+            _irrigation("wheat", "FLOWERING", interval=10),
             _fungicide("wheat", "FLOWERING", interval=14,
                 disease_tip="Powdery Mildew and Brown Rust"),
         ],
@@ -583,12 +583,12 @@ CROP_RULES: dict[str, dict[str, list]] = {
         "VEGETATIVE": [
             _fertilizer("tomato", "VEGETATIVE", due_day=21,
                 advice="Apply NPK 19:19:19 @ 30 g per plant or Urea + SSP mix for strong stem growth."),
-            _irrigation("tomato", "VEGETATIVE", interval=3),
+            _irrigation("tomato", "VEGETATIVE", interval=4),
             _weeding("tomato", "VEGETATIVE", due_day=21),
             tomato_vegetative_staking,    # custom: install stakes by day 21
         ],
         "FLOWERING": [
-            _irrigation("tomato", "FLOWERING", interval=3),
+            _irrigation("tomato", "FLOWERING", interval=4),
             _pesticide("tomato", "FLOWERING", interval=10,
                 pest_tip="whitefly and aphids (they spread Tomato Yellow Leaf Curl Virus)"),
             _fungicide("tomato", "FLOWERING", interval=10,
@@ -620,7 +620,7 @@ _URGENCY_ORDER = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3}
 
 # Irrigation intervals per crop (days) — used for scoring
 _CROP_IRRIGATION_INTERVALS = {
-    "wheat": 7, "rice": 3, "paddy": 3, "maize": 7, "tomato": 3,
+    "wheat": 10, "rice": 3, "paddy": 3, "maize": 7, "tomato": 4,
 }
 
 def calculate_health_score(season: CropSeason, db: Session,

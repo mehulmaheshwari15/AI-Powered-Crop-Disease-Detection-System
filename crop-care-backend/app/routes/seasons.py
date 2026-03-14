@@ -39,9 +39,9 @@ class SeasonStageUpdate(BaseModel):
 CROP_DURATIONS = {
     "wheat":    120,
     "paddy":    135,
-    "rice":     135,
-    "maize":    100,
-    "tomato":   75,
+    "rice":     120,
+    "maize":    90,
+    "tomato":   80,
     "cotton":   180,
     "soybean":  100,
     "mustard":  110,

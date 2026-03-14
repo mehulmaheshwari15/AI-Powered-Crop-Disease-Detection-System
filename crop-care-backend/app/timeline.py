@@ -64,7 +64,7 @@ CROP_MILESTONES: dict[str, list[dict]] = {
         {"day": 35,  "event": "Pesticide Spray",          "action_type": "PESTICIDE_SPRAY",          "window": 7},
         {"day": 60,  "event": "Fungicide Spray",          "action_type": "FUNGICIDE_SPRAY",          "window": 7},
         {"day": 80,  "event": "Pre-Harvest Observation",  "action_type": "HEALTH_OBSERVATION",       "window": 7},
-        {"day": 90,  "event": "Harvest",                  "action_type": "HARVEST_COMPLETE",         "window": 5},
+        {"day": 120, "event": "Harvest",                  "action_type": "HARVEST_COMPLETE",         "window": 5},
     ],
 
     "maize": [
@@ -75,7 +75,7 @@ CROP_MILESTONES: dict[str, list[dict]] = {
         {"day": 30,  "event": "Fall Armyworm Scout",      "action_type": "PESTICIDE_SPRAY",          "window": 7},
         {"day": 50,  "event": "Fungicide Spray",          "action_type": "FUNGICIDE_SPRAY",          "window": 7},
         {"day": 70,  "event": "Maturity Check",           "action_type": "HEALTH_OBSERVATION",       "window": 7},
-        {"day": 80,  "event": "Harvest",                  "action_type": "HARVEST_COMPLETE",         "window": 5},
+        {"day": 90,  "event": "Harvest",                  "action_type": "HARVEST_COMPLETE",         "window": 5},
     ],
 
     "tomato": [
@@ -149,14 +149,31 @@ def _milestone_status(
             ).first():
                 return "DONE"
 
+    # ── Bug 3 Fix: Fertilizer and Weeding accept *any* early action ──
+    if action_type in ["FERTILIZER_APPLICATION", "WEEDING"]:
+        sow = date.fromisoformat(sowing_date)
+        window_end = (sow + timedelta(days=milestone_day + window)).isoformat()
+        action = (
+            db.query(FarmingAction)
+            .filter(
+                FarmingAction.season_id == season_id,
+                FarmingAction.action_type == action_type,
+                FarmingAction.action_date <= window_end,
+                FarmingAction.action_date <= date.today().isoformat()
+            )
+            .first()
+        )
+        if action:
+            return "DONE"
+        if days_elapsed > (milestone_day + window):
+            return "OVERDUE"
+        return "UPCOMING"
+
     # Always query the database for the action within the target window
     sow = date.fromisoformat(sowing_date)
     target_date  = sow + timedelta(days=milestone_day)
     window_start = (target_date - timedelta(days=window)).isoformat()
     window_end   = (target_date + timedelta(days=window)).isoformat()
-
-    print(f"DEBUG TIMELINE: checking '{action_type}' for milestone_day {milestone_day}. "
-          f"Window: {window_start} to {window_end}. season: {season_id}")
 
     # Map milestone action_type to allowed database types
     allowed_types = [action_type]
@@ -172,7 +189,7 @@ def _milestone_status(
             FarmingAction.action_type.in_(allowed_types),
             FarmingAction.action_date >= window_start,
             FarmingAction.action_date <= window_end,
-            FarmingAction.action_date <= date.today().isoformat(),  # PROBLEM 1 FIX: never count future actions as DONE
+            FarmingAction.action_date <= date.today().isoformat(),  # never count future actions as DONE
         )
         .first()
     )
@@ -201,8 +218,8 @@ CROP_IRRIGATION_INTERVALS: dict[str, int] = {
 # Harvest days per crop (end point for irrigation loop)
 CROP_HARVEST_DAYS: dict[str, int] = {
     "wheat":  120,
-    "rice":    90,
-    "maize":   80,
+    "rice":   120,
+    "maize":   90,
     "tomato":  80,
 }
 
@@ -238,15 +255,53 @@ def build_timeline(season: CropSeason, db: Session) -> list[dict]:
     lookahead    = days_elapsed + 14   # show past + next ~2 upcoming irrigations
 
     irrigation_milestones = []
-    irr_day = irr_interval          # first irrigation at day = interval (e.g. 5 for wheat @10d)
-    while irr_day <= harvest_day and irr_day <= lookahead:
-        irrigation_milestones.append({
-            "day":         irr_day,
-            "event":       f"Irrigation (Day {irr_day})",
-            "action_type": "IRRIGATION",
-            "window":      irr_interval // 2 + 1,
-        })
-        irr_day += irr_interval
+    
+    # ── Bug 2 Fix: Collapse old irrigation milestones for frequent intervals
+    if irr_interval <= 3:
+        cutoff_day = max(0, days_elapsed - irr_interval + 1)
+        missed_old_count = 0
+        first_missed = None
+        last_missed = None
+        
+        irr_day = irr_interval
+        while irr_day <= harvest_day and irr_day <= lookahead:
+            if irr_day < cutoff_day:
+                status = _milestone_status(season.season_id, "IRRIGATION", "", irr_day, irr_interval // 2 + 1, days_elapsed, sowing_date, db)
+                if status == "OVERDUE":
+                    missed_old_count += 1
+                    if first_missed is None: first_missed = irr_day
+                    last_missed = irr_day
+            else:
+                irrigation_milestones.append({
+                    "day":         irr_day,
+                    "event":       f"Irrigation (Day {irr_day})",
+                    "action_type": "IRRIGATION",
+                    "window":      irr_interval // 2 + 1,
+                })
+            irr_day += irr_interval
+            
+        if missed_old_count > 0:
+            target_date_str = (date.fromisoformat(sowing_date) + timedelta(days=first_missed)).isoformat()
+            irrigation_milestones.append({
+                "day": first_missed,
+                "event": f"Irrigations (Days {first_missed}–{last_missed})",
+                "action_type": None, # Force manual processing below
+                "status": "OVERDUE",
+                "window": 0,
+                "fake_target_date": target_date_str,
+                "note": f"{missed_old_count} irrigation events overdue in this period"
+            })
+    else:
+        # Normal behavior for wheat/maize
+        irr_day = irr_interval
+        while irr_day <= harvest_day and irr_day <= lookahead:
+            irrigation_milestones.append({
+                "day":         irr_day,
+                "event":       f"Irrigation (Day {irr_day})",
+                "action_type": "IRRIGATION",
+                "window":      irr_interval // 2 + 1,
+            })
+            irr_day += irr_interval
     # ─────────────────────────────────────────────────────────────────────────
 
     # Merge fixed milestones + dynamic irrigation milestones, sort by day
@@ -255,26 +310,31 @@ def build_timeline(season: CropSeason, db: Session) -> list[dict]:
 
     timeline = []
     for m in all_milestones:
-        status = _milestone_status(
-            season_id     = season.season_id,
-            action_type   = m["action_type"],
-            event_name    = m["event"],
-            milestone_day = m["day"],
-            window        = m.get("window", 7),
-            days_elapsed  = days_elapsed,
-            sowing_date   = sowing_date,
-            db            = db,
-        )
-        # Calculate the calendar date for this milestone
-        target_date = (
-            date.fromisoformat(sowing_date) + timedelta(days=m["day"])
-        ).isoformat()
+        if "status" in m:
+            # Pre-computed summary milestone
+            status = m["status"]
+            target_date = m.get("fake_target_date", sowing_date)
+            note = m.get("note", "")
+        else:
+            status = _milestone_status(
+                season_id     = season.season_id,
+                action_type   = m["action_type"],
+                event_name    = m["event"],
+                milestone_day = m["day"],
+                window        = m.get("window", 7),
+                days_elapsed  = days_elapsed,
+                sowing_date   = sowing_date,
+                db            = db,
+            )
+            target_date = (date.fromisoformat(sowing_date) + timedelta(days=m["day"])).isoformat()
+            note = ""
 
         timeline.append({
             "day":         m["day"],
             "target_date": target_date,
             "event":       m["event"],
             "status":      status,
+            "note":        note if note else "",
         })
 
     return timeline
